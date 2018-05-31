@@ -1,0 +1,175 @@
+#! /bin/bash
+
+# script eval
+
+
+
+init() {
+    echo "Bienvenue dans le script d'installation de machine virtuelle (si certaines choses ne fonctionnent pas)";
+    echo "Agrandissez votre fenêtre de commande, je parle beaucoup.";
+    read -n 1 -s -r -p "Pour commencer, appuyez sur une touche ";
+    echo ""; echo "attention au petit apt update";
+    sudo apt update;
+    sudo apt upgrade;
+    installVbAndVagrant;
+    menu;
+}
+
+installVbAndVagrant() {
+    pkgVB=$(dpkg-query -l virtualbox)
+    if [ -z "$pkgVB" ]
+    then 
+        echo "installation de virtualbox";
+        sudo apt install -y virtualbox-qt;
+    fi
+    pkgVg=$(dpkg-query -l vagrant)
+    if [ -z "$pkgVg" ]
+    then
+        echo "installation de vagrant";
+        sudo apt install -y vagrant;
+    fi
+    pkgVg=$(dpkg-query -l vagrant); pkgVB=$(dpkg-query -l virtualbox); 
+    if [ -z "$pkgVB" ] || [ -z "$pkgVg" ]
+    then
+        echo "Il y a eu une erreur dans les installations, vous devez le faire manuellement";
+        exit 1;
+    fi
+}
+
+createVagrant() {
+    echo "Choisissez un nom de dossier de synchronisation";
+    read folderSyncName;
+    mkdir $folderSyncName;
+    echo "Le nom du système à utiliser (exemple : ubuntu/xenial64, ...), et assurez vous qu'il soit correct";
+    read systemImageName;
+    echo "Génération du fichier";
+    vagrant init $systemImageName;
+    oldWord= '# config.vm.network "private_network", ip: "192.168.33.10' newWord= 'config.vm.network "private_network", ip: "192.168.33.10"';  
+    sed -i 's/${oldWord}/${newWord}/g' Vagrantfile;
+    oldWord2= '# config.vm.synced_folder "../data", "/vagrant_data"'; newWord2= 'config.vm.synced_folder "./${folderSyncName}", "/var/www/html/"';
+    sed -i 's/${oldWord2}/${newWord2}/g' Vagrantfile;
+}
+
+installPkg() {
+    read -p "${1} (o/n)" repP;
+    while [ $repP != "o" ] && [ $repP != "n" ]
+    do
+        read -p "${1} (o/n)" repP;
+    done
+
+    if [ $repP == "o" ]
+    then
+        repPkg=$repP" ${2}";
+        echo $repPkg;
+    
+    elif [ $repP == "n" ]
+    then
+        repPkg=$repP" ${2}";
+        echo $repPkg;
+    fi
+
+    case "$repPkg" in
+        "o apache2")
+            vagrant ssh -c "sudo apt install -y apache2";
+            vagrant ssh -c "sudo a2enmod rewrite";
+            ;;
+        
+        "o mysql-server")
+            vagrant ssh -c "sudo apt install -y mysql-server";
+            ;;
+
+        "o git")
+            vagrant ssh -c "sudo apt install -y git";
+            ;;
+
+        "o git-flow")
+            vagrant ssh -c "sudo apt install -y git-flow";
+            ;;
+
+        "o php")
+            vagrant ssh -c "sudo apt install -y apache2";
+            vagrant ssh -c "sudo a2enmod rewrite";
+            echo "nécessite unzip et beaucoup de dépendances"
+            vagrant ssh -c "sudo add-apt-repository ppa:ondrej/php";
+            vagrant ssh -c "sudo apt update";
+            vagrant ssh -c "sudo apt install -y unzip curl php7.2 php7.2-cli php7.2-mbstring php7.2-mysql libapache2-mod-php7.2 php7.2-xml php-mcrypt php7.2-intl php5.6 php5.6-cli php5.6-mbstring php5.6-mcrypt php5.6-mysql php5.6-xml php-curl php-zip php-gd";
+            ;;
+
+        "o composer")
+            vagrant ssh -c "sudo apt install -y apache2";
+            vagrant ssh -c "sudo a2enmod rewrite";
+            vagrant ssh -c "sudo add-apt-repository ppa:ondrej/php";
+            vagrant ssh -c "sudo apt update";
+            vagrant ssh -c "sudo apt install -y unzip curl php7.2 php7.2-cli php7.2-mbstring php7.2-mysql libapache2-mod-php7.2 php7.2-xml php-mcrypt php7.2-intl php5.6 php5.6-cli php5.6-mbstring php5.6-mcrypt php5.6-mysql php5.6-xml php-curl php-zip php-gd";
+            vagrant ssh -c "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\"";
+            vagrant ssh -c "php -r \"if (hash_file('SHA384', 'composer-setup.php') === '544e09ee996cdf60ece3804abc52599c22b1f40f4323403c44d44fdfdd586475ca9813a858088ffbc1f233e9b180f061') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;\"";
+            vagrant ssh -c "sudo php composer-setup.php --install-dir=/usr/local/bin --filename=composer\"";
+            vagrant ssh -c "php -r \"unlink('composer-setup.php');\"";
+            ;;
+
+        "o nodejs")
+            vagrant ssh -c "curl -sL https://deb.nodesource.com/setup_8.x -o nodesource_setup.sh";
+            vagrant ssh -c "sudo bash nodesource_setup.sh";
+            vagrant ssh -c "sudo apt install -y nodejs";
+            vagrant ssh -c "sudo apt install -y build-essential";            
+            ;;
+
+        "o mongoDB")
+            vagrant ssh -c 'sudo apt install npm';
+            vagrant ssh -c "npm install mongodb --save";
+            ;;
+
+        "o express")
+            vagrant ssh -c 'sudo apt install npm';        
+            vagrant ssh -c "npm install express";
+            vagrant ssh -c "sudo service apache2 reload";
+            ;;
+
+        *)
+            ;;
+    esac
+}
+
+menu() {
+    echo ""; echo "Menu principal :";
+
+    select rep in "Créer une Vagrant" "Voir les Vagrants actives" "Quitter le script"
+    do
+        case "$rep" in
+            "Créer une Vagrant")
+                echo "Le nom de votre nouvelle Vagrant (qui sera crée dans le dossier courant, parce que j'ai perdu trop de temps sur les [insérer un mot pas beau] regex pour coder un choix de rep sans faille dsl): ";
+                read nomVagrant;
+                mkdir $nomVagrant;
+                cd $nomVagrant;
+                createVagrant;
+                echo "Fichier VagrantFile créé.";
+                echo "Génération de votre machine vagrant, ceci peut prendre du temps en fonction de votre connexion internet...";
+                vagrant up;
+                echo "Votre machine a pour défaut l'adresse ip 192.168.33.10";
+                echo "Souhaitez vous installer sur la machine : ";
+                installPkg "apache2 (sera installé si nécessaire) ?" "apache2";
+                installPkg "php (sera installé si nécessaire) ?" "php";
+                installPkg "nodejs (bis) ?" "nodejs";
+                installPkg "git (si n'est pas déjà installé) ?" "git";
+                installPkg "git-flow ?" "git-flow";
+                installPkg "mysql ?" "mysql";
+                installPkg "mongoDB ?" "mongoDB";
+                installPkg "php composer ?" "composer";
+                installPkg "nodejs express (je vous laisse vous débrouiller pour les conflits si vous avez composer et express simultanément) ?" "express";
+                echo "Votre Vagrant à été crée ! Amusez vous bien."
+                ;;
+
+            "Voir les Vagrants actives")
+                echo "Vagrantes actives : ";
+                vagrant global-status;
+                #prendre vagrant id
+                #faire vagrant destroy id
+                ;;
+            "Quitter le script")
+                echo "Merci d'avoir choisi bash et shell !";
+                break;;
+        esac
+    done
+}
+
+init;
