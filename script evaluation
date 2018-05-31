@@ -147,23 +147,38 @@ menu() {
                 vagrant up;
                 echo "Votre machine a pour défaut l'adresse ip 192.168.33.10";
                 echo "Souhaitez vous installer sur la machine : ";
-                installPkg "apache2 (sera installé si nécessaire) ?" "apache2";
-                installPkg "php (sera installé si nécessaire) ?" "php";
-                installPkg "nodejs (bis) ?" "nodejs";
-                installPkg "git (si n'est pas déjà installé) ?" "git";
-                installPkg "git-flow ?" "git-flow";
-                installPkg "mysql ?" "mysql";
-                installPkg "mongoDB ?" "mongoDB";
-                installPkg "php composer ?" "composer";
-                installPkg "nodejs express (je vous laisse vous débrouiller pour les conflits si vous avez composer et express simultanément) ?" "express";
+                echo ""; installPkg "apache2 (sera installé si nécessaire) ?" "apache2";
+                echo ""; installPkg "php (sera installé si nécessaire) ?" "php";
+                echo ""; installPkg "nodejs (bis) ?" "nodejs";
+                echo ""; installPkg "git (si n'est pas déjà installé) ?" "git";
+                echo ""; installPkg "git-flow ?" "git-flow";
+                echo ""; installPkg "mysql ?" "mysql-server";
+                echo ""; installPkg "mongoDB ?" "mongoDB";
+                echo ""; installPkg "php composer ?" "composer";
+                echo ""; installPkg "nodejs express (je vous laisse vous débrouiller pour les conflits si vous avez composer et express simultanément) ?" "express";
                 echo "Votre Vagrant à été crée ! Amusez vous bien."
                 ;;
 
             "Voir les Vagrants actives")
                 echo "Vagrantes actives : ";
-                vagrant global-status;
-                #prendre vagrant id
-                #faire vagrant destroy id
+                vagrant global-status --prune;
+                echo "Souhaitez vous :"
+                select repVa in "Arrêter une vagrant" "Détruire une vagrant"
+                do
+                    case $repVa in
+                        "Arrêter une vagrant")
+                            read -p "Entrez l'id de la vagrant à arrêter :" stopVag;
+                            vagrant halt $stopVag;
+                        break;;
+
+                        "Détruire une vagrant")
+                            read -p "Entrez l'id de la vagrant à arrêter :" destVag;
+                            vagrant halt $destVag;
+                            vagrant destroy $destVag;
+                        break;;
+
+                    esac
+                done
                 ;;
             "Quitter le script")
                 echo "Merci d'avoir choisi bash et shell !";
